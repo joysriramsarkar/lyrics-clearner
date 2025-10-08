@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ export default function Home() {
   const [cleanedText, setCleanedText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [autoClean, setAutoClean] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const sampleText = `আজি   মেঘ কেটে গেছে সকালবেলায়,
      এসো এসো এসো   তোমার হাসিমুখে--
@@ -37,14 +38,13 @@ export default function Home() {
       return;
     }
 
-    // সরাসরি প্রসেসিং, কোনো লোডিং স্টেট ছাড়াই
     const cleaned = cleanStringLines(inputText);
     const formatted = formatLyricsForDisplay(cleaned);
     setCleanedText(formatted);
     toast.success('লিরিক্স সফলভাবে পরিষ্কার হয়েছে!');
+    return formatted;
   };
 
-  // Auto-clean when input changes
   const handleInputChange = (value: string) => {
     setInputText(value);
     if (autoClean && value.trim()) {
@@ -54,68 +54,43 @@ export default function Home() {
     }
   };
 
-  const handleCopyToClipboard = async () => {
-    if (!cleanedText) {
+  const handleCopyToClipboard = async (textToCopy?: string) => {
+    const text = textToCopy || cleanedText;
+    if (!text) {
       toast.error('কপি করার জন্য কোনো লিরিক্স নেই');
       return;
     }
 
     try {
-      // প্রথমে আধুনিক ক্লিপবোর্ড API চেষ্টা করা
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(cleanedText);
+        await navigator.clipboard.writeText(text);
         toast.success('লিরিক্স ক্লিপবোর্ডে কপি হয়েছে!');
         return;
       }
 
-      // যদি আধুনিক API কাজ না করে, তাহলে পুরনো পদ্ধতি ব্যবহার করা
       const textArea = document.createElement('textarea');
-      textArea.value = cleanedText;
-      textArea.style.cssText = `
-        position: fixed;
-        top: -9999px;
-        left: -9999px;
-        width: 2em;
-        height: 2em;
-        padding: 0;
-        border: none;
-        outline: none;
-        box-shadow: none;
-        background: transparent;
-        opacity: 0;
-        pointer-events: none;
-        user-select: none;
-      `;
-      
+      textArea.value = text;
+      textArea.style.cssText = `position: fixed; top: -9999px; left: -9999px; width: 2em; height: 2em; padding: 0; border: none; outline: none; box-shadow: none; background: transparent; opacity: 0; pointer-events: none; user-select: none;`;
       document.body.appendChild(textArea);
-      
-      // ফোকাস এবং সিলেক্ট করা
       textArea.focus();
       textArea.select();
       textArea.setSelectionRange(0, 99999);
-      
-      // কপি কমান্ড এক্সিকিউট করা
       const successful = document.execCommand('copy');
-      
-      // ক্লিনআপ
       document.body.removeChild(textArea);
       
       if (successful) {
         toast.success('লিরিক্স ক্লিপবোর্ডে কপি হয়েছে!');
       } else {
-        // যদি execCommand ও কাজ না করে, তাহলে টেক্সট সিলেক্ট করে দেখানো
         showTextForManualCopy();
       }
       
     } catch (err) {
       console.error('Copy failed:', err);
-      // শেষ অপশন: টেক্সট সিলেক্ট করে দেখানো
       showTextForManualCopy();
     }
   };
 
   const showTextForManualCopy = () => {
-    // আউটপুট টেক্সটএরিয়া ফোকাস করা এবং সিলেক্ট করা
     const outputTextarea = document.querySelector('textarea[readonly]') as HTMLTextAreaElement;
     if (outputTextarea) {
       outputTextarea.focus();
@@ -133,11 +108,44 @@ export default function Home() {
     toast.success('নমুনা লিরিক্স লোড হয়েছে!');
   };
 
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setInputText(text);
+      toast.success('ক্লিপবোর্ড থেকে লিরিক্স পেস্ট করা হয়েছে!');
+    } catch (err) {
+      console.error('Paste failed:', err);
+      toast.error('ক্লিপবোর্ড থেকে পেস্ট করা যায়নি।');
+    }
+  };
+
   const handleClearAll = () => {
     setInputText('');
     setCleanedText('');
     toast.success('সব কিছু মুছে ফেলা হয়েছে!');
   };
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === 'Enter') {
+        const cleaned = handleCleanLyrics();
+        if (cleaned) {
+          handleCopyToClipboard(cleaned);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [inputText, cleanedText]);
 
   const wordCount = inputText ? countWords(inputText) : 0;
   const lineCount = inputText ? countLines(inputText) : 0;
@@ -148,7 +156,6 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
       <Toaster position="top-right" />
       
-      {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -173,7 +180,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="cleaner" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8">
@@ -188,7 +194,6 @@ export default function Home() {
           </TabsList>
 
           <TabsContent value="cleaner" className="space-y-6">
-            {/* Statistics Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <Card>
                 <CardContent className="p-4">
@@ -236,9 +241,7 @@ export default function Home() {
               </Card>
             </div>
 
-            {/* Input and Output Sections */}
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Input Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -251,6 +254,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea
+                    ref={inputRef}
                     placeholder="আপনার লিরিক্স এখানে লিখুন..."
                     value={inputText}
                     onChange={(e) => handleInputChange(e.target.value)}
@@ -273,6 +277,14 @@ export default function Home() {
                     </Badge>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      onClick={handlePasteFromClipboard}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      পেস্ট করুন
+                    </Button>
                     <Button 
                       onClick={handleLoadSample}
                       variant="outline"
@@ -293,7 +305,6 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Output Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -314,7 +325,7 @@ export default function Home() {
                     />
                     {cleanedText && (
                       <Button
-                        onClick={handleCopyToClipboard}
+                        onClick={() => handleCopyToClipboard()}
                         size="sm"
                         className="absolute top-2 right-2"
                         variant="secondary"
@@ -339,7 +350,6 @@ export default function Home() {
               </Card>
             </div>
 
-            {/* Features Section */}
             <Card className="mt-8">
               <CardHeader>
                 <CardTitle>বৈশিষ্ট্যসমূহ</CardTitle>
@@ -387,7 +397,6 @@ export default function Home() {
         </Tabs>
       </main>
 
-      {/* Footer */}
       <footer className="border-t bg-white/80 backdrop-blur-sm mt-16">
         <div className="container mx-auto px-4 py-6">
           <div className="text-center text-sm text-gray-600">

@@ -1,39 +1,66 @@
 export function cleanStringLines(text: string): string {
-  if (!text || !text.trim()) return '';
-  
+  if (!text) return '';
+
   const lines = text.split('\n');
   const cleanedLines = [];
-  
+
   for (const line of lines) {
-    let cleanedLine = line.trim();
-    
-    // শব্দের পরে ও যতি চিহ্নের আগে স্পেস মুছে ফেলা
-    cleanedLine = cleanedLine.replace(/\s+([.,;:!?।॥])/g, '$1');
-    
-    // একাধিক স্পেসকে একটিতে পরিণত করা
-    cleanedLine = cleanedLine.replace(/\s+/g, ' ');
-    
-    // লাইনের শেষে অবাঞ্ছিত যতিচিহ্ন মুছে ফেলা (সিমপ্লিফাইড)
-    cleanedLine = cleanedLine.replace(/[.,;:'"()\[\]{}<>\-_=+@#$%^&*|/\\~`।॥]+$/g, '');
-    
-    // আলাদাভাবে '--' মুছে ফেলা
-    cleanedLine = cleanedLine.replace(/--+$/g, '');
-    
-    if (cleanedLine) {
-      cleanedLines.push(cleanedLine);
+    if (line.trim() === '') {
+      cleanedLines.push('');
+      continue;
     }
+
+    let cleanedLine = line.trim();
+
+    // Handle '--' at the end of the line or in the middle
+    if (cleanedLine.endsWith('--')) {
+      cleanedLine = cleanedLine.slice(0, -2).trim();
+    } else {
+      cleanedLine = cleanedLine.replace(/--/g, '—');
+    }
+
+    // Remove specified punctuation from the end of the line
+    cleanedLine = cleanedLine.replace(/([,.;:।॥]+)$/, '');
+
+    // Remove space before punctuation
+    cleanedLine = cleanedLine.replace(/\s+([!?])/g, '$1');
+
+    // Replace multiple spaces with a single space
+    cleanedLine = cleanedLine.replace(/\s+/g, ' ');
+
+    cleanedLines.push(cleanedLine.trim());
   }
-  
+
   return cleanedLines.join('\n');
 }
 
 export function formatLyricsForDisplay(text: string): string {
   if (!text) return '';
-  
-  // অতিরিক্ত ফরম্যাটিং - খালি লাইন রিমুভ করা
-  return text.split('\n')
-    .filter(line => line.trim().length > 0)
-    .join('\n');
+
+  const lines = text.split('\n');
+  const formattedLines = [];
+  let previousLineWasBlank = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (line === '') {
+      if (!previousLineWasBlank) {
+        formattedLines.push('');
+        previousLineWasBlank = true;
+      }
+    } else {
+      formattedLines.push(line);
+      previousLineWasBlank = false;
+    }
+  }
+
+  // Ensure the text doesn't end with multiple blank lines
+  while (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] === '') {
+    formattedLines.pop();
+  }
+
+  return formattedLines.join('\n');
 }
 
 export function countWords(text: string): number {
@@ -46,7 +73,7 @@ export function countLines(text: string): number {
   return text.split('\n').filter(line => line.trim().length > 0).length;
 }
 
-// বাংলা সংখ্যা কনভার্টার
+// Bengali number converter
 export function toBengaliNumber(num: number): string {
   const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return num.toString().split('').map(digit => {
