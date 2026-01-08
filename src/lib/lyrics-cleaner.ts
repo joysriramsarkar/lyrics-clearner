@@ -38,24 +38,9 @@ export function formatLyricsForDisplay(text: string): string {
   if (!text) return '';
 
   const lines = text.split('\n');
-  const formattedLines = [];
-  let previousLineWasBlank = false;
+  const formattedLines = lines.map(line => line.trim());
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    if (line === '') {
-      if (!previousLineWasBlank) {
-        formattedLines.push('');
-        previousLineWasBlank = true;
-      }
-    } else {
-      formattedLines.push(line);
-      previousLineWasBlank = false;
-    }
-  }
-
-  // Ensure the text doesn't end with multiple blank lines
+  // Remove trailing blank lines
   while (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] === '') {
     formattedLines.pop();
   }
