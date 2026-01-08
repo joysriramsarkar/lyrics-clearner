@@ -12,6 +12,7 @@ import { Copy, Music, Users, FileText, Sparkles, BarChart, Zap } from 'lucide-re
 import toast, { Toaster } from 'react-hot-toast';
 import { cleanStringLines, formatLyricsForDisplay, countWords, countLines, toBengaliNumber } from '@/lib/lyrics-cleaner';
 import ArtistManagement from '@/components/artist-management';
+import { removeExtraEmptyLines } from './lyrics-utils';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -38,7 +39,8 @@ export default function Home() {
       return;
     }
 
-    const cleaned = cleanStringLines(inputText);
+    let cleaned = cleanStringLines(inputText);
+    cleaned = removeExtraEmptyLines(cleaned);
     const formatted = formatLyricsForDisplay(cleaned);
     setCleanedText(formatted);
     toast.success('লিরিক্স সফলভাবে পরিষ্কার হয়েছে!');
@@ -48,7 +50,8 @@ export default function Home() {
   const handleInputChange = (value: string) => {
     setInputText(value);
     if (autoClean && value.trim()) {
-      const cleaned = cleanStringLines(value);
+      let cleaned = cleanStringLines(value);
+      cleaned = removeExtraEmptyLines(cleaned);
       const formatted = formatLyricsForDisplay(cleaned);
       setCleanedText(formatted);
     }
